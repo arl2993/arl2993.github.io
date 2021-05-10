@@ -1,0 +1,458 @@
+---
+title: 'Project 1: Exploratory Data Analysis'
+author: "SDS348"
+date: ''
+output:
+  html_document:
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+  pdf_document:
+    toc: no
+  word_document:
+    toc: no
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, fig.align = "center", warning = F, message = F,
+tidy=TRUE, tidy.opts=list(width.cutoff=60), R.options=list(max.print=100))
+```
+
+## Data Wrangling and Data Exploration
+
+### Instructions
+A knitted R Markdown document (ideally HTML) and the raw R Markdown file (as .Rmd) should both be submitted to Canvas by 11:59pm on the due date. These two documents will be graded jointly, so they must be consistent (i.e., don’t change the R Markdown file without also updating the knitted document).
+
+The text of the document should provide a narrative structure around your code/output. All results presented must have corresponding code. Any answers/results/plots etc. given without the corresponding R code that generated the result will not be considered. Furthermore, all code contained in your final project document must work correctly (knit early, knit often)! Please do not include any extraneous code or code which produces error messages. (Code that produces warnings is acceptable, as long as you understand what the warnings mean!)
+
+### Find data:
+
+Find two (!) datasets with one variable in common (e.g., dates, times, states, counties, countries, sports players), both with at least 50 observations (i.e., rows) in each. Please think very carefully about whether it makes sense to combine your datasets! If you find one dataset with 50 patients and it has their age, and you find another dataset with 50 *different* patients that has their ages, it makes no sense to join them based on age (you would just be pairing up random people of the same age).
+
+When combined, the resulting/final dataset must have **at least 4 different variables (at least 3 numeric) in addition to the common variable** (i.e., five variables total).
+
+You can have as many variables as you would like! If you found two datasets that you like but they don't have enough variables, find a third dataset with the same common variable and join all three.
+
+
+
+### Guidelines
+
+1. If the datasets are not tidy, you will need to reshape them so that every observation has its own row and every variable its own column. If the datasets are both already tidy, you will make them untidy with `pivot_wider()/spread()` and then tidy them again with `pivot_longer/gather()` to demonstrate your use of the functions. It's fine to wait until you have your descriptives to use these functions (e.g., you might want to pivot_wider() to rearrange the data to make your descriptive statistics easier to look at); it's fine long as you use them at least once!
+
+```{r}
+library(tidyverse)
+getwd()
+Drinks <- read.csv('drinks.csv')
+Happiness <- read.csv('happiness.csv')
+glimpse(Happiness)
+wide2 <-pivot_wider(Drinks,names_from="country",values_from="total_litres_of_pure_alcohol")
+pivot_longer(wide2,cols = c("Afghanistan":"Zimbabwe"),names_to="Country",values_to="Total Liters of Alcohol")
+
+wide <- pivot_wider(Happiness,names_from="Country.or.region",values_from="Score")
+wide %>% pivot_longer(c("Finland":"South Sudan"),names_to="Country",values_to="Happiness_Score")
+
+```
+
+    - Depending on your datasets, it might be a good idea to do this before joining. For example, if you have a dataset you like with multiple measurements per year, but you want to join by year, you could average over your numeric variables to get means/year, do counts for your categoricals to get a counts/year, etc.
+    
+    - If your data sets are already tidy, demonstrate the use of `pivot_longer()/gather()` and `pivot_wider()/spread()` on all or part of your data at some point in this document (e.g., after you have generated summary statistics in part 3, make a table of them wide instead of long).
+    
+    
+
+2. Join your 2+ separate data sources into a single dataset based on a common ID variable! If you can't find a good pair datasets to join, you may split one main dataset into two different datasets with a common ID variable in each, and then join them back together based on that common ID, but this is obviously less than ideal.
+```{r}
+Happiness <- Happiness%>%rename(country=Country.or.region)
+data <- full_join(Happiness,Drinks,by="country")
+nona <- na.omit(data)
+```
+
+
+    - You will document the type of join that you do (left/right/inner/full), including a discussion of how many observations were in each dataset, which observations in each dataset were dropped (if any) and why you chose this particular join. 
+
+
+3. Create summary statistics
+
+    - Use *all six* core `dplyr` functions (`filter, select, arrange, group_by, mutate, summarize`) to manipulate and explore your dataset. For mutate, create a  new variable that is a function of at least one other variable, preferably using a dplyr vector function (see dplyr cheatsheet). It's totally fine to use the `_if`, `_at`, `_all` versions of mutate/summarize instead (indeed, it is encouraged if you have lots of variables)
+    
+    - Create summary statistics (`mean, sd, var, n, quantile, min, max, n_distinct, cor`, etc) for each of your numeric variables both overall and after grouping by one of your categorical variables (either together or one-at-a-time; if you have two categorical variables, try to include at least one statistic based on a grouping of two categorical variables simultaneously). 
+    
+    If you do not have any categorical variables, create one using mutate (e.g., with `case_when` or `ifelse`) to satisfy the `group_by` requirements above. Ideally, you will find a way to show these summary statistics in an easy-to-read table (e.g., by reshaping). (You might explore the kable package for making pretty tables!) If you have lots of numeric variables (e.g., 10+), or your categorical variables have too many categories, just pick a few (either numeric variables or categories of a categorical variable) and summarize based on those. It would be a good idea to show a correlation matrix for your numeric variables (you will need it to make one of your plots).
+    
+```{r}
+mutated <- nona %>% mutate(total_servings=beer_servings+spirit_servings+wine_servings)
+glimpse(mutated)
+mydata <- subset(mutated,select=-GDP.per.capita)
+mydata <- subset(mydata,select=-Social.support)
+mydata <- subset(mydata,select=-Healthy.life.expectancy)
+mydata <- subset(mydata,select=-Freedom.to.make.life.choices)
+mydata <- subset(mydata,select=-Generosity)
+glimpse(mydata)
+
+mutated %>% filter(continent == "Asia")
+mutated %>% filter(continent == "Africa")
+mutated %>% filter(continent == "North America")
+mutated %>% filter(continent == "Europe")
+mutated %>% filter(continent == "South America")
+
+mydata %>% arrange(country,desc=T)
+mean(mydata$Score)
+mean(mydata$Perceptions.of.corruption)
+mean(mydata$beer_servings)
+mean(mydata$spirit_servings)
+mean(mydata$wine_servings)
+mean(mydata$total_litres_of_pure_alcohol)
+mean(mydata$total_servings)
+
+sd(mydata$Score)
+sd(mydata$Perceptions.of.corruption)
+sd(mydata$beer_servings)
+sd(mydata$spirit_servings)
+sd(mydata$wine_servings)
+sd(mydata$total_litres_of_pure_alcohol)
+sd(mydata$total_servings)
+
+min(mydata$Score)
+min(mydata$Perceptions.of.corruption)
+min(mydata$beer_servings)
+min(mydata$spirit_servings)
+min(mydata$wine_servings)
+min(mydata$total_litres_of_pure_alcohol)
+min(mydata$total_servings)
+
+max(mydata$Score)
+max(mydata$Perceptions.of.corruption)
+max(mydata$beer_servings)
+max(mydata$spirit_servings)
+max(mydata$wine_servings)
+max(mydata$total_litres_of_pure_alcohol)
+max(mydata$total_servings)
+
+var(mydata$Score)
+var(mydata$Perceptions.of.corruption)
+var(mydata$beer_servings)
+var(mydata$spirit_servings)
+var(mydata$wine_servings)
+var(mydata$total_litres_of_pure_alcohol)
+var(mydata$total_servings)
+
+n_distinct(mydata$Score)
+n_distinct(mydata$Perceptions.of.corruption)
+n_distinct(mydata$beer_servings)
+n_distinct(mydata$spirit_servings)
+n_distinct(mydata$wine_servings)
+n_distinct(mydata$total_litres_of_pure_alcohol)
+n_distinct(mydata$total_servings)
+
+grouped <- mydata%>%group_by(continent)
+
+mean(grouped$Score)
+mean(grouped$Perceptions.of.corruption)
+mean(grouped$beer_servings)
+mean(grouped$spirit_servings)
+mean(grouped$wine_servings)
+mean(grouped$total_litres_of_pure_alcohol)
+mean(grouped$total_servings)
+
+sd(grouped$Score)
+sd(grouped$Perceptions.of.corruption)
+sd(grouped$beer_servings)
+sd(grouped$spirit_servings)
+sd(grouped$wine_servings)
+sd(grouped$total_litres_of_pure_alcohol)
+sd(grouped$total_servings)
+
+min(grouped$Score)
+min(grouped$Perceptions.of.corruption)
+min(grouped$beer_servings)
+min(grouped$spirit_servings)
+min(grouped$wine_servings)
+min(grouped$total_litres_of_pure_alcohol)
+min(grouped$total_servings)
+
+max(grouped$Score)
+max(grouped$Perceptions.of.corruption)
+max(grouped$beer_servings)
+max(grouped$spirit_servings)
+max(grouped$wine_servings)
+max(grouped$total_litres_of_pure_alcohol)
+max(grouped$total_servings)
+
+var(grouped$Score)
+var(grouped$Perceptions.of.corruption)
+var(grouped$beer_servings)
+var(grouped$spirit_servings)
+var(grouped$wine_servings)
+var(grouped$total_litres_of_pure_alcohol)
+var(grouped$total_servings)
+
+n_distinct(grouped$Score)
+n_distinct(grouped$Perceptions.of.corruption)
+n_distinct(grouped$beer_servings)
+n_distinct(grouped$spirit_servings)
+n_distinct(grouped$wine_servings)
+n_distinct(grouped$total_litres_of_pure_alcohol)
+n_distinct(grouped$total_servings)
+
+
+
+
+```
+
+ 
+4. Make visualizations (three plots)
+
+    -  Make a correlation heatmap of your numeric variables
+    -  Create at least two additional plots of your choice with ggplot that highlight some of the more interesting features of your data.
+    - Each plot (besides the heatmap) should have at least three variables mapped to separate aesthetics
+    - Each should use different geoms (e.g., don't do two geom_bars)
+    - At least one plot should include `stat="summary"`
+    - Each plot should include a supporting paragraph describing the relationships that are being visualized and any trends that are apparent
+        - It is fine to include more, but limit yourself to 4. Plots should avoid being redundant! Four bad plots will get a lower grade than two good plots, all else being equal.
+    - Make them pretty! Use correct labels, etc.
+    
+    
+```{r}
+library(dplyr)
+library(tidyverse)
+mydata %>% summarize(cor(Score,total_litres_of_pure_alcohol,use="pair"))
+mydata %>% summarize(cor(Score,total_servings,use="pair"))
+cormat <- mydata %>% select_if(is.numeric) %>% cor(use="pair")
+tidycor <- cormat %>% as.data.frame %>% rownames_to_column("var1") %>%  pivot_longer(-1,names_to="var2",values_to="correlation")
+tidycor
+
+tidycor%>%ggplot(aes(var1,var2,fill=correlation))+
+geom_tile()+
+scale_fill_gradient2(low="blue",mid="white",high="red")+
+geom_text(aes(label=round(correlation,2)),color = "black", size = 4)+
+theme(axis.text.x = element_text(angle = 90, hjust=1))+
+coord_fixed()+xlab('Variable 1')+ylab('Variable 2')+ggtitle('Correlation Plot')
+
+
+ggplot(mydata,aes(x=total_servings,y=Score)) + geom_point()+geom_jitter(alpha=.5,aes(color=continent))+geom_smooth()+ggtitle("Happiness as a Function of Total Alcohol Servings")+xlab("Total Servings")+ylab("Happiness Score")+theme(axis.text.x = element_text(angle = 90))+scale_x_continuous(breaks=seq(0, 600, by = 100))
+
+ggplot(mydata,aes(x=total_servings,y=Perceptions.of.corruption))+geom_smooth()+ggtitle("Perceptions of Corruption as a Function of Alcohol Consumption")+xlab("Total Servings")+ylab("Perceptions of Corruption")+theme(axis.text.y = element_text(angle = 30))
+
+ggplot(mydata, aes(x = continent, y = total_servings,fill=continent))+
+  geom_bar(stat="summary",fun=mean)+
+  geom_errorbar(stat="summary", fun.data=mean_se,width=0.5)+ggtitle('Total Servings by Continent')+xlab("Continent")+ylab("Total Servings")
+
+
+
+
+
+
+```
+
+    
+5. Perform k-means/PAM clustering or PCA on (at least) your numeric variables.
+
+    - Include all steps as we discuss in class, including a visualization.
+
+    - If you don't have at least 3 numeric variables, or you want to cluster based on categorical variables too, convert them to factors in R, generate Gower's dissimilarity matrix on the data, and do PAM clustering on the dissimilarities.
+    
+    - Show how you chose the final number of clusters/principal components 
+    
+    - Interpret the final clusters/principal components 
+
+    - For every step, document what your code does (in words) and what you see in the data!     
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(cluster)
+clust_dat<-mydata%>%dplyr::select(beer_servings,Score)
+num1<-vector()
+for(i in 2:10){
+  kms<-kmeans(clust_dat,centers=i)
+  sil<-silhouette(kms$cluster,dist(clust_dat))
+  sil_width<-mean(sil[,3])
+}
+ggplot()+geom_line(aes(x=1:10,y=sil_width))+scale_x_continuous(name="k",breaks=1:10)
+for(i in 1:10){
+temp<- mydata %>% select(beer_servings,Score) %>% kmeans(i)
+wss<-temp$tot.withinss
+}
+ggplot()+geom_point(aes(x=1:10,y=wss))+geom_path(aes(x=1:10,y=wss))+
+  xlab("clusters")+scale_x_continuous(breaks=1:10)
+kmeans1<-clust_dat%>%kmeans(10)
+kmeans1
+kmeans1$betweenss
+kmeans1$tot.withinss
+kmeans1$size
+kmeans1$cluster
+kmeansclust<-clust_dat%>%mutate(cluster=as.factor(kmeans1$cluster))
+kmeansclust
+kmeansclust%>%ggplot(aes(beer_servings,Score,color=cluster))+geom_point()
+
+
+
+clust_dat1<-mydata%>%dplyr::select(wine_servings,Score)
+for(i in 2:10){
+  kms1<-kmeans(clust_dat1,centers=i)
+  sil1<-silhouette(kms1$cluster,dist(clust_dat1))
+  sil_width1<-mean(sil[,3])
+}
+ggplot()+geom_line(aes(x=1:10,y=sil_width))+scale_x_continuous(name="k",breaks=1:10)
+for(i in 1:10){
+temp1<- mydata %>% select(wine_servings,Score) %>% kmeans(i)
+wss1<-temp1$tot.withinss
+}
+ggplot()+geom_point(aes(x=1:10,y=wss1))+geom_path(aes(x=1:10,y=wss1))+
+  xlab("clusters")+scale_x_continuous(breaks=1:10)
+kmeans2<-clust_dat1%>%kmeans(10)
+kmeans2
+kmeans2$betweenss
+kmeans2$tot.withinss
+kmeans2$size
+kmeans2$cluster
+kmeansclust1<-clust_dat1%>%mutate(cluster=as.factor(kmeans2$cluster))
+kmeansclust1
+kmeansclust1%>%ggplot(aes(wine_servings,Score,color=cluster))+geom_point()
+
+
+clust_dat2<-mydata%>%dplyr::select(spirit_servings,Score)
+for(i in 2:10){
+  kms2<-kmeans(clust_dat2,centers=i)
+  sil2<-silhouette(kms2$cluster,dist(clust_dat2))
+  sil_width2<-mean(sil[,3])
+}
+ggplot()+geom_line(aes(x=1:10,y=sil_width))+scale_x_continuous(name="k",breaks=1:10)
+for(i in 1:10){
+temp2<- mydata %>% select(spirit_servings,Score) %>% kmeans(i)
+wss2<-temp2$tot.withinss
+}
+ggplot()+geom_point(aes(x=1:10,y=wss2))+geom_path(aes(x=1:10,y=wss2))+
+  xlab("clusters")+scale_x_continuous(breaks=1:10)
+kmeans3<-clust_dat%>%kmeans(10)
+kmeans3
+kmeans3$betweenss
+kmeans3$tot.withinss
+kmeans3$size
+kmeans3$cluster
+kmeansclust2<-clust_dat2%>%mutate(cluster=as.factor(kmeans3$cluster))
+kmeansclust2
+kmeansclust2%>%ggplot(aes(spirit_servings,Score,color=cluster))+geom_point()
+
+clust_dat3<-mydata%>%dplyr::select(total_litres_of_pure_alcohol,Score)
+for(i in 2:10){
+  kms3<-kmeans(clust_dat3,centers=i)
+  sil3<-silhouette(kms3$cluster,dist(clust_dat3))
+  sil_width3<-mean(sil[,3])
+}
+ggplot()+geom_line(aes(x=1:10,y=sil_width))+scale_x_continuous(name="k",breaks=1:10)
+for(i in 1:10){
+temp3<- mydata %>% select(total_litres_of_pure_alcohol,Score) %>% kmeans(i)
+wss3<-temp2$tot.withinss
+}
+ggplot()+geom_point(aes(x=1:10,y=wss3))+geom_path(aes(x=1:10,y=wss3))+
+  xlab("clusters")+scale_x_continuous(breaks=1:10)
+kmeans4<-clust_dat%>%kmeans(10)
+kmeans4
+kmeans4$betweenss
+kmeans4$tot.withinss
+kmeans4$size
+kmeans4$cluster
+kmeansclust3<-clust_dat3%>%mutate(cluster=as.factor(kmeans4$cluster))
+kmeansclust3
+kmeansclust3%>%ggplot(aes(total_litres_of_pure_alcohol,Score,color=cluster))+geom_point()
+
+```
+
+
+<P style="page-break-before: always">
+\newpage
+    
+### Rubric
+
+Prerequisite: Finding appropriate data from at least two sources per the instructions above: Failure to do this will result in a 0! You will submit a .Rmd file and a knitted document (html/pdf).
+
+#### 0. Introduction (5  pts)
+
+- Write a narrative introductory paragraph or two describing the datasets you have chosen, the variables they contain, how they were acquired, and why they are interesting to you. Expand on potential associations you may expect, if any.
+
+This project explores the global relationship between alcohol consumption and happiness. I found two datasets that contained a common variable of country and was able to use them for the project. The dataset on drinking contains information on the average consumption per citizen in each country. It examines wine servings, spirit servings, beer servings, total liters, and continent.The dataset on happiness includes each country with a happiness score, GDP per gapita, generosity, perceptions of corruption, healthy life expectancy, social support, and freedom to make life choices.
+
+We are all familiar with the fact that alcohol is a depressant, but I was curious as to what exactly that meant for overall happiness. My underlying question was simply: does drinking more mean you will be a less happy person? There are countries that frequently score high on a "happiness" scale like Denmark and Finland, and I was curious if countries like this drink more while unhappy countries drink less. Because alcohol is a depressant, it's reasonable to think that there would be a negative association between the two. I actually expected to find the opposite. While alcohol itself has negative impacts on your brain's ability to feel happy, my instincts told me that countries where drinking is more pervasive might have wealthier citizens, more free time or leisure, more social interaction, etc. For this reason, I expected a positive relationship between alcohol consumption and the happiness score of each country.
+
+#### 1. Tidying: Rearranging Wide/Long (10 pts)
+
+- Tidy the datasets (using the `tidyr` functions `pivot_longer`/`gather` and/or `pivot_wider`/`spread`) 
+- If you data sets are already tidy, be sure to use those functions somewhere else in your project (e.g., for rearranging summary statistics)
+- Document the process (describe in words what was done)
+    
+    Both of these datasets were already quite tidy. Each row had a value in each column, the countries in each respective dataset appeared only once, and the columns weren't repetitive. I used pivot wider on both preliminary datasets, changing "country" to a column instead. This resulted in 150+ additional columns under the formal name of each country with the happiness score or the total liters of alcohol consumed as its value, depending on which dataset I was altering. I then used pivot longer to reverse this change and resume examination of the tidy datasets.    
+    
+#### 2. Joining/Merging (10 pts)
+
+- Join your datasets into one using a `dplyr` join function
+- If you have multiple observations on the joining variable in either dataset, fix this by collapsing via summarize
+- Discuss the process in words, including why you chose the join you did
+- Discuss which cases were dropped, if any, and potential problems with this
+
+I decided to do a full join of these two datasets. I first renamed the country column in the happiness dataset, then full joined the two. There were no repeated observations, so it was not necessary to fix by collapsing with summarize. I could several other types of joins using just the specific identifier and columns I wanted, but the data overlapped quite nicely and I wanted to retain the IDs and information associated. There were a hand full of countries that were dropped, most likely due to different naming processes. For example, the United States could be referred to as such, or by USA. There are problems with lost data in the case of countries; to fully examine the happiness of countries compared to their alcohol consumption, a project would ideally examine the entire population of countries rather than a sample subset containing less than the full number. With 156, I felt I gained ample insight into the relationship of these two identifiers and upheld a robust dataset. 
+
+#### 3. Wrangling (40 pts)
+
+- Use all six core `dplyr` functions in the service of generating summary tables/statistics (12 pts)
+    - Use mutate at least once to generate a variable that is a function of at least one other variable
+- Compute summary statistics for each of your variables using `summarize` alone and with `group_by` (if you have more than 10 variables, fine to just focus on 10) (20 pts)
+    - Use at least 5 unique functions inside of summarize (e.g., mean, sd)
+    - For at least 2, use summarize after grouping by a categorical variable. Create one by dichotomizing a numeric if necessary
+    - If applicable, at least 1 of these should group by two categorical variables
+- Summarize the procedure and discuss all (or the most interesting) results in no more than two paragraphs (8 pts)
+
+To mutate the data frame, I created a new column called Total Servings, which was the sum of the servings for wine, beer, and spirits. I thought this was an easier way to look at the total consumption of alcohol compared to liters, because the consumption of a liter of beer is so different from a liter of spirits or wine etc. I also used the subset function to remove several variables that I felt were not relevant. I used several dplyr functions to just visualize the data in a different way. For example, I used filter to look at it through the lens of each continent, one by one. I then calculated the mean of each numeric variable, the sd, the min, the max, the distinct data points, etc. before doing these calculations again with the data grouped by continent. I thought continent would be a better way to group than by country because each country was its own unique occurrence. It was interesting to compare the values from grouped and ungrouped data, specifically the means of servings. This inspired me to explore the relationship between continent and drinking later in the project. This categorical variable made it easy to group and examine.
+
+
+
+#### 4. Visualizing (30 pts)
+
+- Create a correlation heatmap of your numeric variables the way we did in class
+
+- Create two more effective, polished plots with ggplot
+
+    - Each plot should map 3+ variables to aesthetics 
+    - Each plot should have a title and clean labeling for all mappings
+    - Change at least one default theme element and color for at least one mapping per plot
+    - For at least one plot, add more tick marks (x, y, or both) than are given by default
+    - For at least one plot, use the stat="summary" function
+    - Supporting paragraph or two (for each plot) describing the relationships/trends that are apparent
+    
+This correlation plot explored the relationship between each of the variables of my tidied, merged dataset. Higher correlation is shown in red, while lower correlation is shown in blue. Because many of my numeric variables looked at the breakdown of alcohol consumption, there was fairly high correlation between many variables. For example, a country with a higher total alcohol servings value will likely have a higher beer, wine, and spirits serving too. For this reason, there’s a lot of red showing up on the correlation plot. The highest correlations are seen between total liters of alcohol and total servings. This makes a lot of sense; more liters of alcohol means more alcohol being consumed in general. It’s unlikely for that to mean the average person is consuming way above average in, say, wine and way below average in another type of alcohol, so it makes sense that these two variables would have a high correlation. The lowest correlation is seen between the happiness score and overall rank. A high happiness score means a lower overall rank because the values are descending. This correlation plot is a little disappointing just because the majority of the striking information comes on semantics as I have discussed above. That being said, I found it interesting that the more “neutral” correlations, or the most lacking correlations are seen in perceptions of corruption. There was very little relationship between the perceptions of corruption and the total servings, total liters, and beer servings. I had debated removing this variable since it didn’t completely align with the questions I had on alcohol as a depressant, but I found it very interesting so I kept it. This correlation plot made me glad I did!
+
+The second plot I created was examining the central question of my project. It explores the relationship between happiness score and total alcohol servings, and finds a slight positive association. The line of best fit finds a  positive, linear seeming relationship between the total servings and the happiness score. I colored each point by the continent that country belongs to. From what I can tell, there’s not a huge relationship here. It looks like some of the countries with higher servings seem to be green, indicating Europe, but there are some values on the lower side here as well. It does look like African and South American countries cluster toward the lower side of alcohol servings. I included additional tick marks on the x-axis here to better show the number of servings associated with the point.
+
+I was inspired to explore the perceptions of corruption variable a bit more. I wanted to see if perceptions of corruption raise or lower as a function of total alcohol servings, so I plotted these variables and used geom_smooth. While the line is satisfying to look at, there doesn’t seem to be a huge relationship here either. The highest serving countries do, however, seem to have the highest perceptions of corruption as well. It’s not apparent from the graph if this relationship is significant, but it would be interesting to look more into the relationship these two variables have.
+
+The final plot I decided to do was looking at total servings by continent. This graph used stat=summary, meaning the mean for each continent was used. The results on this one were by far the most interesting to look at. Adding error bars confirmed my suspicion that there were major differences between the total servings by continent. Africa and Asia were the lowest by a significant amount, while Europe and Oceania were the highest. North and South America fell more in the middle. 
+
+#### 5. Dimensionality Reduction (30 pts) 
+
+- Either k-means/PAM clustering or PCA (inclusive "or") should be performed on at least three of your variables (3 is just the minimum: using more/all of them will make this much more interesting!)
+
+
+    - All relevant steps discussed in class (e.g., picking number of PCs/clusters)
+    - A visualization of the clusters or the first few principal components (using ggplot2)
+    - Supporting paragraph or two describing results found, interpreting the clusters/PCs in terms of the original variables and observations, discussing goodness of fit or variance explained, etc.
+    
+We use k-means to sort the data into "k" clusters on the basis of their stats variables. The centers are moved to the middle of each "cloud of points"; this adjustment changes them to centroids. We repeat this until the groups stabilize. We take each cluster and recompute the center for each one, representing the mean of x and mean of y for each one. Then we reassign the points to whichever centroid they are closest to. 
+
+Weighting the variables wasn't applicable because each numeric that I examined versus the happiness score was in the scale of servings, so they were already weighted, in a sense. I performed a k-means clustering with beer servings and score, wine servings and score, and spirit servings and score. The first step was to create cluster data using dplyr to select for the two variables I was interested in. I then applied kmeans to the clustered data by looking at the number of “groups” there appeared to me. I looked at the between differences and within differences of the kmeans before mutating as a factor of the cluster. I then plotted with ggplot and geom_point to visualize which datapoints had been assigned to which cluster. My hope was to look at the cluster data and see that different continents were assigned to different clusters. After the data visualization showed me that continents were significant in their differences of total servings, I had hoped that this would make itself known in the clusters as well. However, I did not notice this pattern in the data or the visualizations, so I selected the cluster values based on the rough estimate of number of clusters I saw. The clusters were selected using WSS and BSS with the silhouette width. Higher silhouette width is better, so a value of 10 was satisfying to me.
+
+#### 6. Neatness, Holistic/Discretionary Points (5 pts)
+
+- Keep things looking nice! Your project should not knit to more than 30 or so pages (probably closer to 10-20)! You will lose points if you print out your entire dataset(s), have terrible formatting, etc. If you start your project in a fresh .Rmd file, you are advised to copy set-up code below and include it: this will do things like automatically truncate if you accidentally print out a huge dataset, etc. Imagine this is a polished report you are giving to your PI or boss to summarize your work researching a topic.
+
+```{r eval=F}
+## paste this chunk into the ```{r setup} chunk at the top of your project 1 .Rmd file
+
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, fig.align = "center", warning = F, message = F,
+tidy=TRUE, tidy.opts=list(width.cutoff=60), R.options=list(max.print=100))
+```
+
+
+
+
+
+
